@@ -86,11 +86,17 @@ _JOBS_GUARD = threading.Lock()
 # ================================================================
 
 def load_bot_token():
+    """Baca token dari baris pertama yang bukan kosong/komentar (awalan '#').
+    Sengaja toleran terhadap sisa baris komentar dari bot_token.txt.example
+    yang tidak sempat dihapus, dan terhadap BOM UTF-8 dari editor Windows."""
     if not os.path.isfile(BOT_TOKEN_PATH):
         return None
-    with open(BOT_TOKEN_PATH, "r", encoding="utf-8") as f:
-        token = f.read().strip()
-    return token or None
+    with open(BOT_TOKEN_PATH, "r", encoding="utf-8-sig") as f:
+        for line in f:
+            line = line.split("#", 1)[0].strip()
+            if line:
+                return line
+    return None
 
 
 def load_allowed_users():
