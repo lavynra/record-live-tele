@@ -165,13 +165,29 @@ def stop_keyboard(job_id):
 
 
 async def safe_edit_text(bot, chat_id, message_id, text, reply_markup=None):
-    """Edit pesan tanpa melempar error (mis. jika isi persis sama / pesan sudah dihapus)."""
+    """Untuk update progres yang SERING (tiap beberapa detik) -- boleh gagal diam-diam,
+    karena akan ada kesempatan edit berikutnya sesaat lagi."""
     try:
         await bot.edit_message_text(
             chat_id=chat_id, message_id=message_id, text=text, reply_markup=reply_markup,
         )
     except Exception:
         pass
+
+
+async def deliver_final_message(bot, chat_id, message_id, text, reply_markup=None):
+    """Untuk pesan status AKHIR yang kritis & cuma terkirim sekali (berhasil/gagal
+    rekam, berhasil/gagal upload). Coba edit dulu; kalau gagal apa pun sebabnya,
+    kirim sebagai pesan baru -- supaya user tidak pernah kehilangan hasil akhirnya."""
+    try:
+        await bot.edit_message_text(
+            chat_id=chat_id, message_id=message_id, text=text, reply_markup=reply_markup,
+        )
+        return
+    except Exception:
+        pass
+    with contextlib.suppress(Exception):
+        await bot.send_message(chat_id=chat_id, text=text, reply_markup=reply_markup)
 
 
 # ================================================================
@@ -503,13 +519,13 @@ async def _run_recording_job_inner(bot, chat_id, job, username, stream_url, dura
 
     if error or not exists or size_mb <= 0:
         detail = f"\nDetail: {error}" if error else ""
-        await safe_edit_text(
+        await deliver_final_message(
             bot, chat_id, msg.message_id,
             f"❌ Rekam @{username} gagal atau tidak ada data yang berhasil terekam.{detail}",
         )
         return
 
-    await safe_edit_text(
+    await deliver_final_message(
         bot, chat_id, msg.message_id,
         f"✅ Rekam @{username} selesai ({core.format_duration(elapsed)}, {size_mb:.1f} MB).\n"
         f"☁️ Mengunggah ke MediaFire...",
@@ -518,15 +534,27 @@ async def _run_recording_job_inner(bot, chat_id, job, username, stream_url, dura
     # --- Upload ke MediaFire, dengan progres realtime berjalan paralel ---
     job["uploaded_bytes"] = 0
     job["upload_total"] = int(size_mb * 1024 * 1024) or 1
+    job["upload_phase"] = "uploading"
     upload_done = threading.Event()
 
     def _progress(uploaded, total):
         job["uploaded_bytes"] = uploaded
         job["upload_total"] = total or 1
 
+    def _phase_change(phase):
+        job["upload_phase"] = phase
+
     async def _upload_progress_loop():
         while not upload_done.is_set():
             await asyncio.sleep(PROGRESS_INTERVAL_SECONDS)
+            if job.get("upload_phase") == "finalizing":
+                await safe_edit_text(
+                    bot, chat_id, msg.message_id,
+                    f"☁️ Data @{username} sudah 100% terkirim.\n"
+                    f"⏳ Menunggu MediaFire selesai memproses (bisa beberapa menit "
+                    f"untuk file besar)...",
+                )
+                continue
             uploaded = job.get("uploaded_bytes", 0)
             total = job.get("upload_total", 1)
             pct = min(100, int(uploaded / total * 100)) if total else 0
@@ -541,7 +569,8 @@ async def _run_recording_job_inner(bot, chat_id, job, username, stream_url, dura
     link = None
     try:
         link = await asyncio.to_thread(
-            mf.upload_file, MEDIAFIRE_SESSION, output_path, mf.DEFAULT_FOLDER_KEY, _progress
+            mf.upload_file, MEDIAFIRE_SESSION, output_path, mf.DEFAULT_FOLDER_KEY,
+            _progress, _phase_change,
         )
     except mf.MediaFireError as exc:
         upload_error = str(exc)
@@ -554,11 +583,13 @@ async def _run_recording_job_inner(bot, chat_id, job, username, stream_url, dura
             await progress_task
 
     if upload_error:
-        await safe_edit_text(
+        await deliver_final_message(
             bot, chat_id, msg.message_id,
             f"⚠️ Rekam @{username} selesai, tapi upload ke MediaFire gagal.\n"
             f"Error: {upload_error}\n"
-            f"File tetap tersimpan di server: {output_path}",
+            f"File tetap tersimpan di server: {output_path}\n\n"
+            f"Coba jalankan bot dengan environment variable DEBUG_UPLOAD=1 untuk detail, "
+            f"lalu cek file debug_upload_*.json yang muncul.",
         )
         return
 
@@ -574,7 +605,7 @@ async def _run_recording_job_inner(bot, chat_id, job, username, stream_url, dura
     }
     store.add_record(record)
 
-    await safe_edit_text(
+    await deliver_final_message(
         bot, chat_id, msg.message_id,
         f"✅ Rekam @{username} selesai!\n\n"
         f"⏱ Durasi: {core.format_duration(elapsed)}\n"

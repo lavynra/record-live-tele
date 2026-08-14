@@ -117,8 +117,15 @@ def _post_json(session, url, **kwargs):
 
 
 def _unwrap(payload):
-    """doupload kadang berupa dict tunggal, kadang list (saat banyak key)."""
-    data = payload.get("response") or {}
+    """doupload kadang berupa dict tunggal, kadang list (saat banyak key).
+    Beberapa endpoint (terutama upload/resumable.php, di domain berbeda dari
+    endpoint lain) kemungkinan TIDAK membungkus hasil dalam "response" --
+    ini tidak sempat terverifikasi dari traffic asli, jadi tangani dua-duanya:
+    jika "response" tidak ada / bukan dict, anggap payload itu sendiri adalah
+    datanya."""
+    data = payload.get("response")
+    if not isinstance(data, dict):
+        data = payload
     doupload = data.get("doupload")
     if isinstance(doupload, list):
         doupload = doupload[0] if doupload else {}
@@ -310,7 +317,7 @@ def upload_chunks(session, action_token, filepath, filename, total_size, file_ha
 # TAHAP 5: POLL UPLOAD
 # ================================================================
 
-def poll_upload(session, action_token, upload_key, interval=2.0, timeout=1800):
+def poll_upload(session, action_token, upload_key, interval=2.0, timeout=1800, on_tick=None):
     deadline = time.time() + timeout
     last_doupload = {}
     while time.time() < deadline:
@@ -324,6 +331,8 @@ def poll_upload(session, action_token, upload_key, interval=2.0, timeout=1800):
         _data, doupload = _unwrap(payload)
         last_doupload = doupload
         status = str(doupload.get("status", ""))
+        if on_tick:
+            on_tick(status, doupload.get("description", ""))
         if status == "99":
             quickkey = doupload.get("quickkey")
             if not quickkey:
@@ -343,13 +352,19 @@ def build_share_link(quickkey, filename):
     return f"https://www.mediafire.com/file/{quickkey}/{urllib.parse.quote(filename)}/file"
 
 
-def upload_file(session, filepath, folder_key=DEFAULT_FOLDER_KEY, progress_callback=None):
+def upload_file(session, filepath, folder_key=DEFAULT_FOLDER_KEY, progress_callback=None,
+                 on_phase_change=None):
     """
     Unggah satu file ke MediaFire dan kembalikan link download-nya.
 
     progress_callback(uploaded_bytes, total_bytes) dipanggil setiap kali
     sebuah unit selesai diunggah -- cocok dipakai untuk menampilkan
     progres realtime (mis. diedit ke pesan Telegram).
+
+    on_phase_change(phase) dipanggil saat berpindah tahap ("uploading" ->
+    "finalizing") -- berguna supaya UI bisa membedakan "masih mengirim data"
+    vs "sudah terkirim semua, menunggu MediaFire selesai memproses", karena
+    tahap kedua ini bisa memakan waktu tanpa progres byte yang berubah.
     """
     if not os.path.isfile(filepath):
         raise MediaFireError(f"File tidak ditemukan: {filepath}")
@@ -382,6 +397,14 @@ def upload_file(session, filepath, folder_key=DEFAULT_FOLDER_KEY, progress_callb
         session, action_token, filepath, filename, total_size, file_hash,
         unit_size, number_of_units, folder_key, progress_callback,
     )
+    if not upload_key:
+        raise MediaFireError(
+            "Semua potongan terkirim tapi tidak mendapat upload_key dari MediaFire -- "
+            "tidak bisa memverifikasi status upload. Set DEBUG_UPLOAD=1 untuk detail respons."
+        )
+
+    if on_phase_change:
+        on_phase_change("finalizing")
 
     doupload = poll_upload(session, action_token, upload_key)
 
