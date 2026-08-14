@@ -168,8 +168,7 @@ async def safe_edit_text(bot, chat_id, message_id, text, reply_markup=None):
     """Edit pesan tanpa melempar error (mis. jika isi persis sama / pesan sudah dihapus)."""
     try:
         await bot.edit_message_text(
-            chat_id=chat_id, message_id=message_id, text=text,
-            reply_markup=reply_markup, disable_web_page_preview=True,
+            chat_id=chat_id, message_id=message_id, text=text, reply_markup=reply_markup,
         )
     except Exception:
         pass
@@ -437,6 +436,22 @@ def render_recording_text(username, mode_label, elapsed_seconds):
 
 
 async def run_recording_job(bot, chat_id, job, username, stream_url, duration_minutes, requested_by):
+    """Pembungkus jaring-pengaman: apa pun yang terjadi di dalam (termasuk error tak
+    terduga di luar mf.MediaFireError/koneksi biasa), user tetap dapat pesan dan job
+    selalu dibersihkan dari ACTIVE_JOBS -- tidak ada lagi kegagalan yang diam total."""
+    try:
+        await _run_recording_job_inner(bot, chat_id, job, username, stream_url, duration_minutes, requested_by)
+    except Exception as exc:
+        with contextlib.suppress(Exception):
+            await bot.send_message(
+                chat_id=chat_id,
+                text=f"⚠️ Terjadi kesalahan tak terduga saat memproses @{username}: {exc}",
+            )
+    finally:
+        _unregister_job(chat_id)
+
+
+async def _run_recording_job_inner(bot, chat_id, job, username, stream_url, duration_minutes, requested_by):
     stop_event = job["stop_event"]
     output_path = core.build_output_path(username)
     duration_seconds = int(duration_minutes * 60) if duration_minutes else None
@@ -492,7 +507,6 @@ async def run_recording_job(bot, chat_id, job, username, stream_url, duration_mi
             bot, chat_id, msg.message_id,
             f"❌ Rekam @{username} gagal atau tidak ada data yang berhasil terekam.{detail}",
         )
-        _unregister_job(chat_id)
         return
 
     await safe_edit_text(
@@ -546,7 +560,6 @@ async def run_recording_job(bot, chat_id, job, username, stream_url, duration_mi
             f"Error: {upload_error}\n"
             f"File tetap tersimpan di server: {output_path}",
         )
-        _unregister_job(chat_id)
         return
 
     now = datetime.now(core.WIB)
@@ -568,7 +581,6 @@ async def run_recording_job(bot, chat_id, job, username, stream_url, duration_mi
         f"💾 Ukuran: {size_mb:.1f} MB\n"
         f"🔗 Link: {link}",
     )
-    _unregister_job(chat_id)
 
 
 # ================================================================
@@ -604,10 +616,15 @@ async def show_history(update: Update, context: ContextTypes.DEFAULT_TYPE, page=
     keyboard = InlineKeyboardMarkup(buttons)
 
     query = update.callback_query
-    if query:
-        await query.edit_message_text(text, reply_markup=keyboard, disable_web_page_preview=True)
-    else:
-        await update.message.reply_text(text, reply_markup=keyboard, disable_web_page_preview=True)
+    try:
+        if query:
+            await query.edit_message_text(text, reply_markup=keyboard)
+        else:
+            await update.message.reply_text(text, reply_markup=keyboard)
+    except Exception:
+        # Fallback: kirim pesan baru bila edit gagal, supaya user tetap dapat balasan.
+        with contextlib.suppress(Exception):
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=keyboard)
 
 
 async def handle_history_page(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -662,9 +679,14 @@ def build_application(token):
 
     application = Application.builder().token(token).build()
     application.add_handler(TypeHandler(Update, access_control_middleware), group=-1)
-    application.add_handler(conv_handler)
-    application.add_handler(CallbackQueryHandler(handle_stop_recording, pattern="^stop:"))
-    application.add_handler(MessageHandler(filters.ALL, fallback_unhandled), group=1)
+    # Ketiganya sengaja satu grup (0) dan berurutan: PTB mengevaluasi SETIAP grup untuk
+    # SETIAP update, tapi hanya memakai handler PERTAMA yang cocok DALAM satu grup. Jadi
+    # fallback_unhandled harus berada di grup yang SAMA (bukan grup terpisah) dan ditambah
+    # PALING TERAKHIR, supaya ia hanya jalan saat conv_handler & stop-handler sama-sama
+    # tidak cocok -- bukan ikut jalan setiap saat.
+    application.add_handler(conv_handler, group=0)
+    application.add_handler(CallbackQueryHandler(handle_stop_recording, pattern="^stop:"), group=0)
+    application.add_handler(MessageHandler(filters.ALL, fallback_unhandled), group=0)
     return application
 
 
