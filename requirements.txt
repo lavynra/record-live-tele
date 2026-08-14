@@ -1,0 +1,5 @@
+requests>=2.31.0
+
+# Dibutuhkan hanya untuk menjalankan bot.py (integrasi Telegram).
+# Jika hanya memakai main.py (CLI biasa), baris di bawah ini boleh diabaikan.
+python-telegram-bot>=21.0

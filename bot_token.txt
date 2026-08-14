@@ -1,0 +1,12 @@
+# Isi file ini HANYA dengan token bot dari @BotFather, tanpa tanda kutip.
+# Simpan sebagai "bot_token.txt" (hapus akhiran .example) di folder yang
+# sama dengan bot.py.
+#
+# Cara membuat bot & mendapatkan token:
+#   1. Buka Telegram, chat dengan @BotFather
+#   2. Ketik /newbot, ikuti instruksinya (nama bot & username bot)
+#   3. BotFather akan membalas dengan token seperti contoh di bawah
+#   4. Hapus baris komentar ini, ganti dengan token asli kamu
+#
+# Contoh bentuk token (INI BUKAN TOKEN ASLI, jangan dipakai):
+8828358350:AAFax3VC5umlfkSr2TAIUkoRhaC2Hp5IO30

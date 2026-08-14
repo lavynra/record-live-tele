@@ -1,0 +1,14 @@
+# Daftar ID Telegram (BUKAN username) yang diizinkan memakai bot ini.
+# Satu ID per baris. Baris yang diawali "#" dianggap komentar dan diabaikan.
+#
+# Cara mendapatkan ID Telegram kamu sendiri:
+#   1. Buka Telegram, cari bot @userinfobot
+#   2. Ketik /start, bot akan membalas dengan ID kamu (berupa angka)
+#   3. Tempel angka tersebut di bawah ini, satu baris satu ID
+#
+# File ini dibaca ulang setiap kali ada pesan masuk, jadi kamu bisa
+# menambah/menghapus ID kapan saja tanpa perlu restart bot.py.
+#
+# Contoh (hapus tanda # di depan angka untuk mengaktifkan):
+# 123456789
+1390927569

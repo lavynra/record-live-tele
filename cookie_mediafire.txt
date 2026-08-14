@@ -1,0 +1,25 @@
+# Netscape HTTP Cookie File
+# https://curl.haxx.se/rfc/cookie_spec.html
+# This is a generated file! Do not edit.
+
+.mediafire.com	TRUE	/	FALSE	1821190367	ukey	7g4jxghuy54bidk49hiybs2lm7pvsa32
+.mediafire.com	TRUE	/	FALSE	1786777702	_gid	GA1.2.2141525848.1786630371
+.mediafire.com	TRUE	/	TRUE	1821190399	__mmapiwsid	019ffb78-0217-769b-b7fa-ec5843f58c13:7b1a05699e3d22d0a28668c1c47559c22b8e7f07
+.mediafire.com	TRUE	/	TRUE	1818166394	_hjSessionUser_1232118	eyJpZCI6IjY5MGZjNDM5LTM0ZmYtNWFkZC1iZDAyLTgxMTI3MjMxZDBhMyIsImNyZWF0ZWQiOjE3ODY2MzAzNzEwNDgsImV4aXN0aW5nIjp0cnVlfQ==
+.mediafire.com	TRUE	/	TRUE	1821190397	user	44b019c468139ae791db34acdf9f8f7b8ab53a5bd87e379a91b95369b837823cdba3a24b2e0e542ec313ac1eb9b8a5dd1c7cfbde09316baf
+.mediafire.com	TRUE	/	FALSE	1789283272	conv_tracking_data-2	%7B%22mf_source%22%3A%22regular_download-55%22%2C%22mf_content%22%3A%22Free%22%2C%22mf_medium%22%3A%22unknown%5C%2FChrome%22%2C%22mf_campaign%22%3A%22dfcfe7irvmm00fn%22%2C%22mf_term%22%3A%2235035d3348b2a74273e48c16137eafc0%22%7D
+.mediafire.com	TRUE	/	TRUE	1786693075	__cf_bm	EnvciJ.7g7g5vpRg54UWjbScGs1SkQma9Ki7JLAxcvo-1786691275.1292315-1.0.1.1-QE8KUqFNk2gs0BjUNPh5EbTnH.NiTEeE_OmVxhdiBJIyq0aESTX_QWpYa9PuOZvkmktWg0o9lakQhOmYUSBZKaoSvPQYf7F8MTQ4bc2jKlEx3PccRifjbGxyuqI8HVB3
+.mediafire.com	TRUE	/	FALSE	1818227274	amp_28916b	XakHD6fVRxdhGPUhLM4CD7...1jvvhii02.1jvvhii05.0.3.3
+.mediafire.com	TRUE	/	FALSE	1821251275	_ga_K68XP6D85D	GS2.1.s1786691275$o2$g0$t1786691275$j60$l0$h0
+.mediafire.com	TRUE	/	FALSE	1786691335	_gat_gtag_UA_829541_1	1
+.mediafire.com	TRUE	/	FALSE	1786692479	ezfs_484470	727834057
+.mediafire.com	TRUE	/	FALSE	1786698479	ezoab_484470	mod1
+.mediafire.com	TRUE	/	FALSE	1786864079	ezovuuidtime_484470	1786691279
+.mediafire.com	TRUE	/	FALSE	1786693079	lp_484470	https://www.mediafire.com/file/dfcfe7irvmm00fn/bingung+joget+e%F0%9F%99%88%F0%9F%A4%A3%F0%9F%A4%8F.mp4/file
+.mediafire.com	TRUE	/	FALSE	1786693079	ezovuuid_484470	186bc61c-c506-413a-5795-1454c184873e
+.mediafire.com	TRUE	/	FALSE	1786693079	ezoref_484470	
+.mediafire.com	TRUE	/	FALSE	1786864079	active_template::484470	pub_site_mobile.1786691279
+.mediafire.com	TRUE	/	FALSE	1786693079	ezopvc_484470	1
+.mediafire.com	TRUE	/	FALSE	1786691341	_gat_gtag_UA_829541_16	1
+.mediafire.com	TRUE	/	FALSE	1821251302	_ga	GA1.2.766990945.1786630370
+.mediafire.com	TRUE	/	FALSE	1821251306	_ga_PZYNX62DRR	GS2.1.s1786691280$o2$g1$t1786691305$j35$l0$h0

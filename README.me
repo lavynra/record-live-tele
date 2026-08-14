@@ -1,0 +1,271 @@
+# TikTok Live Recorder
+
+Tools untuk merekam siaran **TikTok LIVE** langsung dari sumber stream-nya
+(bukan screen-recording), sehingga hasilnya berupa video + audio murni --
+tanpa overlay komentar, gift, atau elemen antarmuka lainnya.
+
+Tersedia dalam dua mode:
+
+| Mode | File | Dipakai lewat |
+|---|---|---|
+| **Console (CLI)** | `main.py` | Terminal, langsung di perangkat yang menjalankannya |
+| **Bot Telegram** | `bot.py` | Chat Telegram -- bisa dikontrol dari HP mana pun |
+
+Mode Bot menjalankan mesin perekam yang sama seperti mode Console, ditambah
+upload otomatis hasil rekam ke **MediaFire** dan link-nya dikirim balik ke
+chat Telegram.
+
+---
+
+## Fitur
+
+**Inti (kedua mode):**
+- Deteksi status LIVE / OFFLINE sebuah akun TikTok
+- Rekam langsung dari stream asli (FLV/HLS) via FFmpeg, tanpa watermark UI
+- Rekam sampai live selesai, dengan durasi tetap, atau durasi custom
+- Auto-reconnect di level FFmpeg saat koneksi stream sempat putus
+- Auto-stop pintar (safety-net) bila live berakhir tanpa stream ikut putus
+
+**Khusus Bot Telegram:**
+- Menu interaktif (tombol), tidak perlu mengetik perintah
+- Progres rekam ditampilkan **realtime** (detik berjalan) di pesan bot
+- Tombol berhenti rekam kapan saja, tanpa perlu mengakses server
+- Setelah rekam selesai, otomatis diupload ke MediaFire -- link dikirim ke chat
+- Progres upload juga ditampilkan realtime (persentase & ukuran)
+- Riwayat hasil record (username, tanggal, jam, link) bisa dilihat lewat menu
+- Whitelist akses berbasis ID Telegram; pengguna tak terdaftar diarahkan
+  menghubungi admin
+- Opsi **Batal** di setiap langkah input, sehingga tidak akan "nyangkut"
+
+---
+
+## Kebutuhan Sistem
+
+| Komponen | Mode Console | Mode Bot |
+|---|---|---|
+| Python | 3.8+ | **3.10+** (disyaratkan oleh `python-telegram-bot`) |
+| FFmpeg | Wajib, tersedia di PATH | Wajib, tersedia di PATH |
+| Dependensi pip | `requests` | `requests`, `python-telegram-bot` |
+| Akun TikTok | Cookie login (`cookie.txt`) | Cookie login (`cookie.txt`) |
+| Akun MediaFire | - | Cookie login (`cookie_mediafire.txt`) |
+| Bot Telegram | - | Token dari @BotFather |
+
+Didukung di **Windows (CMD/PowerShell)** dan **Termux (Android)** -- semua
+path file ditulis dengan `os.path.join`, tidak ada kode yang bergantung pada
+struktur folder khas satu OS saja.
+
+---
+
+## Instalasi
+
+### 1. Clone repository
+
+```bash
+git clone https://github.com/lavynra/record-tiktok
+cd record-tiktok
+```
+
+### 2. Install FFmpeg
+
+**Windows:**
+```
+winget install ffmpeg
+```
+Atau unduh manual dari https://ffmpeg.org/download.html dan tambahkan ke PATH.
+
+**Termux:**
+```bash
+pkg update
+pkg install ffmpeg
+```
+
+Cek instalasi berhasil dengan `ffmpeg -version` di kedua platform.
+
+### 3. Install Python (khusus Termux, bila belum ada)
+
+```bash
+pkg install python
+```
+
+Windows umumnya sudah menyertakan Python bila diinstal dari
+[python.org](https://python.org) (centang "Add to PATH" saat instalasi).
+
+### 4. Install dependensi pip
+
+Untuk mode Console saja:
+```bash
+pip install requests
+```
+
+Untuk mode Bot Telegram (mencakup mode Console juga):
+```bash
+pip install -r requirements.txt
+```
+
+> Di Termux, jika `pip install` gagal karena `externally-managed-environment`,
+> tambahkan flag `--break-system-packages` di akhir perintah.
+
+---
+
+## Konfigurasi
+
+Semua file konfigurasi berupa **file teks polos**, diletakkan sejajar dengan
+`main.py`/`bot.py`. File-file ini **tidak** ikut ke repository (sudah masuk
+`.gitignore`) karena berisi kredensial pribadi -- yang ikut ke repository
+hanya versi `.example`-nya sebagai panduan format.
+
+### `cookie.txt` (wajib, kedua mode) -- login TikTok
+
+1. Login ke tiktok.com lewat browser.
+2. Pasang ekstensi **"Get cookies.txt LOCALLY"**.
+3. Export cookie untuk domain `tiktok.com`, simpan sebagai `cookie.txt`
+   di folder ini.
+
+### `cookie_mediafire.txt` (wajib untuk Bot) -- login MediaFire
+
+Dipakai untuk mengunggah hasil rekam. Lihat `cookie_mediafire.txt.example`
+untuk format lengkap & instruksi. Ringkasnya:
+
+1. Login ke mediafire.com lewat browser (pastikan sampai ke halaman "My Files").
+2. Pakai ekstensi yang sama seperti di atas, export cookie domain
+   `mediafire.com`, simpan sebagai `cookie_mediafire.txt`.
+3. Cookie yang wajib ada: `ukey` (kunci sesi login). Cookie `cf_clearance`
+   dan `__cf_bm` sebaiknya ikut ter-export juga karena MediaFire memakai
+   proteksi Cloudflare. Paling aman: export semua cookie sekaligus lewat
+   ekstensi, jangan menyalin manual satu per satu.
+
+Semua format yang didukung `cookie.txt` (Netscape / JSON hasil export
+ekstensi / string header `nama=nilai; nama2=nilai2`) berlaku juga untuk
+`cookie_mediafire.txt` -- pakai parser yang sama.
+
+### `bot_token.txt` (wajib untuk Bot) -- token Telegram
+
+1. Chat @BotFather di Telegram, kirim `/newbot`, ikuti instruksinya.
+2. Salin token yang diberikan ke `bot_token.txt` (isi file = token saja).
+
+Lihat `bot_token.txt.example`.
+
+### `allowed_users.txt` (wajib untuk Bot) -- whitelist akses
+
+Isi dengan ID Telegram (angka, bukan username) yang boleh memakai bot, satu
+ID per baris. Dapatkan ID kamu sendiri lewat bot @userinfobot di Telegram.
+File ini dibaca ulang setiap pesan masuk, jadi bisa diedit langsung tanpa
+restart bot. Lihat `allowed_users.txt.example`.
+
+Pengguna dengan ID yang **tidak terdaftar** akan menerima pesan otomatis
+untuk menghubungi admin (`@mr_quixter`) meminta akses.
+
+---
+
+## Cara Pakai
+
+### Mode Console
+
+```bash
+python main.py
+```
+
+Ikuti menu di terminal: masukkan username TikTok, cek status live, pilih
+durasi rekam. Hasil rekam tersimpan di folder `record/`.
+
+### Mode Bot Telegram
+
+```bash
+python bot.py
+```
+
+Biarkan proses ini berjalan (di server/PC/Termux). Selanjutnya semua
+interaksi dilakukan dari Telegram:
+
+1. Kirim `/start` ke bot -- bot membalas salam sekaligus menu:
+   - 🔴 **Record Live TikTok**
+   - 📁 **Lihat Hasil Record**
+2. Pilih **Record Live TikTok** -> masukkan username TikTok (tanpa `@`).
+3. Bot menampilkan status LIVE/OFFLINE. Jika LIVE, pilih durasi:
+   - Rekam Sampai Live Selesai
+   - Rekam Selama 30 Menit
+   - Rekam Durasi Custom (menit)
+   - Kembali ke Menu Awal
+4. Rekam berjalan; pesan bot menampilkan durasi berjalan (detik) secara
+   realtime, lengkap dengan tombol **🛑 Hentikan Rekam**.
+5. Setelah selesai, file otomatis diupload ke MediaFire (progres juga
+   ditampilkan realtime), lalu link dikirim ke chat.
+6. Pilih **Lihat Hasil Record** kapan saja untuk melihat daftar rekaman
+   sebelumnya (username, tanggal, jam, link MediaFire).
+
+Di setiap langkah yang butuh input, tersedia tombol **❌ Batal** untuk
+kembali tanpa harus mengulang dari awal.
+
+**Menjalankan bot terus-menerus:** `python bot.py` berjalan di foreground
+selama proses hidup. Untuk menjaganya tetap berjalan setelah terminal
+ditutup, gunakan `screen`/`tmux` (Termux/Linux) atau Task Scheduler / NSSM
+(Windows), atau proses manager seperti `pm2`/`supervisord`.
+
+---
+
+## Struktur Folder
+
+```
+record-tiktok/
+├── main.py                       # Mesin inti + CLI (tidak berubah)
+├── bot.py                        # Bot Telegram (baru)
+├── mediafire_uploader.py         # Client upload MediaFire (baru)
+├── records_store.py              # Penyimpanan riwayat hasil record (baru)
+├── requirements.txt
+├── cookie.txt                    # (buat sendiri) login TikTok
+├── cookie_mediafire.txt          # (buat sendiri) login MediaFire
+├── bot_token.txt                 # (buat sendiri) token bot Telegram
+├── allowed_users.txt             # (buat sendiri) whitelist ID Telegram
+├── cookie_mediafire.txt.example
+├── bot_token.txt.example
+├── allowed_users.txt.example
+├── records.json                  # (otomatis) riwayat hasil record
+└── record/                       # (otomatis) file hasil rekam (.mp4)
+```
+
+---
+
+## Catatan Penting
+
+- **API tidak resmi.** Baik pengecekan live TikTok maupun upload MediaFire
+  memakai endpoint web internal (hasil observasi traffic), bukan API publik
+  resmi yang terdokumentasi. Keduanya bisa berubah sewaktu-waktu mengikuti
+  kebijakan masing-masing platform.
+- **Uji coba pertama.** Alur upload MediaFire sudah diverifikasi terhadap
+  dokumentasi resmi MediaFire Core API dan traffic nyata, tapi tetap
+  sebaiknya dicoba dulu dengan satu rekaman kecil sebelum dipakai untuk
+  rekaman panjang/besar. Jika ada kegagalan yang sulit dilacak, set
+  environment variable `DEBUG_UPLOAD=1` sebelum menjalankan `bot.py` --
+  setiap tahap upload akan didump ke file `debug_upload_*.json`.
+- **Satu rekam per chat.** Bot membatasi satu proses rekam aktif per chat
+  Telegram (agar tidak membingungkan), tapi TIDAK membatasi jumlah user
+  berbeda merekam bersamaan -- perhatikan kapasitas bandwidth & storage
+  server tempat bot dijalankan bila banyak pengguna aktif sekaligus.
+- **Ctrl+C menghentikan semua proses.** Menghentikan `bot.py` (Ctrl+C) akan
+  memutus paksa rekaman yang sedang berjalan untuk SEMUA pengguna. Untuk
+  menghentikan satu rekaman saja, gunakan tombol **🛑 Hentikan Rekam** di
+  chat, bukan mematikan bot-nya.
+- Gunakan tools ini secara bertanggung jawab dan hormati hak cipta para
+  kreator.
+
+---
+
+## Troubleshooting
+
+| Gejala | Kemungkinan Penyebab | Solusi |
+|---|---|---|
+| `FFmpeg tidak ditemukan` | FFmpeg belum terinstal / tidak di PATH | Install ulang, cek `ffmpeg -version` |
+| `File cookie tidak ditemukan` | `cookie.txt`/`cookie_mediafire.txt` belum dibuat | Ikuti bagian Konfigurasi di atas |
+| Status selalu OFFLINE padahal live | Cookie TikTok kedaluwarsa | Export ulang cookie.txt |
+| `Gagal mendapatkan session_token MediaFire` | Cookie MediaFire kedaluwarsa/tidak lengkap | Export ulang cookie_mediafire.txt (sertakan `cf_clearance`, `__cf_bm`) |
+| Bot tidak merespons sama sekali | Token salah, atau bot belum dijalankan | Cek `bot_token.txt`, cek proses `bot.py` masih berjalan |
+| Dapat pesan "tidak memiliki akses" | ID Telegram belum ada di whitelist | Tambahkan ID (dari pesan tersebut) ke `allowed_users.txt` |
+| Upload MediaFire gagal di tengah jalan | Sebagian potongan gagal terkirim (koneksi tidak stabil) | Bot otomatis mencoba ulang beberapa kali; jika tetap gagal, coba lagi manual atau cek koneksi |
+
+---
+
+## Lisensi & Disclaimer
+
+Proyek ini bersifat independen dan tidak berafiliasi, tidak diotorisasi,
+tidak dikelola, tidak disponsori, maupun tidak didukung oleh TikTok,
+ByteDance, atau MediaFire.
